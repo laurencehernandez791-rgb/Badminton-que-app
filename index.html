@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#176b45">
+<meta name="description" content="Offline-first badminton player registration, queue, courts, and payment records.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Badminton Queueing & Court Management</title>
+<style>
+:root{--green:#176b45;--green2:#0f5134;--mint:#eaf5ee;--bg:#f3f6f4;--ink:#17251d;--muted:#68766d;--line:#dce5de;--orange:#fff1d9;--orangeInk:#875600;--red:#fff0ef;--redInk:#a32720;--blue:#edf4ff;--blueInk:#285b9b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px Arial,Helvetica,sans-serif}header{background:linear-gradient(120deg,var(--green2),var(--green));color:#fff;padding:23px max(16px,calc((100% - 1200px)/2))}header h1{font-size:clamp(22px,4vw,31px);margin:0 0 7px}header p{margin:0;color:#e3f3e8}main{max-width:1200px;margin:22px auto;padding:0 15px 40px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:17px}.tab{background:#e3ebe5;color:#315642}.tab.active{background:var(--green);color:white}
+button{min-height:40px;touch-action:manipulation;border:0;border-radius:9px;padding:10px 13px;background:var(--green);color:white;font-weight:700;cursor:pointer;font-size:13px}button:hover{filter:brightness(.96)}button:disabled{opacity:.4;cursor:not-allowed}.secondary{background:#e7efe9;color:var(--green)}.warn{background:var(--orange);color:var(--orangeInk)}.danger{background:var(--red);color:var(--redInk)}.blue{background:var(--blue);color:var(--blueInk)}
+.panel,.metric{background:white;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 2px 8px #153b2008}.panel{margin-bottom:15px}.panel h2{font-size:18px;margin:0 0 14px}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.metric span{font-size:12px;color:var(--muted)}.metric strong{display:block;font-size:25px;margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.field{margin-bottom:11px}label{display:block;font-weight:700;font-size:13px;margin-bottom:5px}input,select{min-height:42px;width:100%;padding:10px;border:1px solid #cbd6ce;border-radius:8px;font-size:14px;background:white;color:var(--ink)}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.small{font-size:12px;color:var(--muted)}.hint{background:#eff7f1;color:#315c40;padding:10px;border-radius:9px;font-size:13px;margin-top:10px}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.3px}.tag{display:inline-block;padding:4px 8px;border-radius:20px;background:var(--mint);color:var(--green);font-size:11px;font-weight:700}.tag.unpaid{background:var(--orange);color:var(--orangeInk)}.tag.playing{background:var(--blue);color:var(--blueInk)}.tag.done{background:#eee;color:#555}
+.courts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.court{border:1px solid var(--line);border-radius:12px;padding:13px}.court h3{font-size:15px;margin:0 0 9px}.court .names{font-size:13px;line-height:1.6;margin:8px 0}.queue{display:grid;gap:8px}.qitem{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:9px}.qitem span{font-size:13px}.section{display:none}.section.active{display:block}.empty{padding:15px;color:var(--muted);font-size:13px;text-align:center}.actions{display:flex;gap:5px;flex-wrap:wrap}.actions button{padding:7px 9px}.subhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.subhead h2{margin:0}.fee-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:850px){.cards{grid-template-columns:repeat(2,1fr)}.courts{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.grid,.fee-grid{grid-template-columns:1fr}.courts{grid-template-columns:1fr}.metric strong{font-size:22px}header{padding:20px 15px}}
+</style>
+</head>
+<body>
+<header><h1>🏸 Badminton Queueing & Court Management</h1><p>Daily player registration • Multi-court queue • Shuttle fees • Payment records</p></header>
+<main>
+  <div class="cards">
+    <div class="metric"><span>Today's Registered Players</span><strong id="mPlayers">0</strong></div>
+    <div class="metric"><span>Matches Today</span><strong id="mMatches">0</strong></div>
+    <div class="metric"><span>Registration Collection</span><strong id="mReg">₱0.00</strong></div>
+    <div class="metric"><span>Shuttle Collection</span><strong id="mShuttle">₱0.00</strong></div>
+  </div>
+  <nav>
+    <button class="tab active" data-tab="dashboard">Dashboard</button><button class="tab" data-tab="players">Daily Registration</button><button class="tab" data-tab="queue">Queue & Courts</button><button class="tab" data-tab="fees">Fee Records</button><button class="tab" data-tab="reports">Reports</button><button class="tab" data-tab="settings">Settings</button>
+  </nav>
+
+  <section id="dashboard" class="section active">
+    <div class="panel"><div class="subhead"><h2>Live Court Status</h2><span class="small" id="todayLabel"></span></div><div class="courts" id="dashboardCourts"></div></div>
+    <div class="grid">
+      <div class="panel"><h2>Waiting Queue</h2><div id="dashboardQueue" class="queue"></div></div>
+      <div class="panel"><div class="subhead"><h2>🎟️ Player Raffle</h2><span class="tag" id="raffleCount">0 Entries</span></div><p class="small">All players registered today are automatically included in the raffle.</p><div id="raffleEntries" class="queue"></div><div class="hint" id="raffleWinner">Register players to add raffle entries.</div><button id="drawRaffle" style="margin-top:10px">Draw Raffle Winner</button></div>
+    </div>
+  </section>
+
+  <section id="players" class="section">
+    <div class="grid">
+      <div class="panel"><h2>Daily Player Registration</h2><form id="registerForm">
+        <div class="field"><label>Player Full Name *</label><input id="pName" required placeholder="Enter player's name"></div>
+        <div class="field"><label>Player Category *</label><select id="pCategory" required><option>Beginner</option><option>Intermediate/Advance</option></select></div>
+        <div class="row"><div class="field"><label>Registration Fee (₱)</label><input id="regAmount" type="number" min="0" step=".01" required value="50"></div><div class="field"><label>Payment Status</label><select id="regPayment"><option>Paid</option><option>Unpaid</option></select></div></div>
+        <button type="submit">Register for Today</button>
+      </form><div class="hint">Daily registration: the player gets a new registration record each day they play. Fee is adjustable in Settings.</div></div>
+      <div class="panel"><h2>Today's Registration Records</h2><div class="field"><input id="playerSearch" placeholder="Search player name..."></div><div class="tablewrap"><table><thead><tr><th>Player</th><th>Fee</th><th>Status</th><th>Queue</th><th>Action</th></tr></thead><tbody id="playersRows"></tbody></table></div></div>
+    </div>
+  </section>
+
+  <section id="queue" class="section">
+    <div class="grid">
+      <div class="panel"><h2>Add Registered Player to Queue</h2><div class="field"><label>Today's Player</label><select id="queueSelect"></select></div><button id="addQueue">Add to Waiting Queue</button><div class="hint">A match needs 4 paid players. Paid players are added automatically after registration. After a match, players return to the end of the queue. A player can only be queued or playing once at a time.</div>
+        <h2 style="margin-top:18px">Waiting Queue <span class="tag" id="qCount">0</span></h2><div id="queueList" class="queue"></div><div class="row" style="margin-top:10px"><button id="startNext">Start Next Match</button><button class="secondary" id="clearQueue">Clear Waiting Queue</button></div><p id="queueInfo" class="small"></p>
+      </div>
+      <div class="panel"><h2>Court Management</h2><p class="small">Use Settings to configure the number of courts. Each court can hold one active match.</p><div class="courts" id="courtsList"></div></div>
+    </div>
+  </section>
+
+  <section id="fees" class="section">
+    <div class="panel"><div class="subhead"><h2>Shuttle Fee Entry</h2><span class="tag">₱100 / shuttle</span></div><p class="small">Each shuttle used in a match costs ₱100. The amount is split into ₱25 per player. Record usage separately from payment collection.</p><div id="activeMatches"></div></div>
+    <div class="panel"><h2>Payment Ledger</h2><div class="row"><div class="field"><label>Filter date</label><input id="ledgerDate" type="date"></div><div class="field"><label>Filter fee type</label><select id="ledgerType"><option value="All">All types</option><option>Registration</option><option>Shuttle</option></select></div><button id="exportLedger" style="align-self:center">Export CSV</button></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Player</th><th>Fee Type</th><th>Amount</th><th>Payment</th><th>Match</th><th>Action</th></tr></thead><tbody id="ledgerRows"></tbody></table></div></div>
+  </section>
+
+  <section id="reports" class="section">
+    <div class="panel"><h2>Daily / Date Report</h2><div class="row"><div class="field"><label>Select date</label><input type="date" id="reportDate"></div><button id="makeReport" style="align-self:center">Refresh Report</button><button id="exportReport" class="secondary" style="align-self:center">Export Report CSV</button></div><div class="cards" style="margin-top:14px"><div class="metric"><span>Registered</span><strong id="rPlayers">0</strong></div><div class="metric"><span>Matches</span><strong id="rMatches">0</strong></div><div class="metric"><span>Fees Collected</span><strong id="rCollected">₱0.00</strong></div><div class="metric"><span>Unpaid Balance</span><strong id="rUnpaid">₱0.00</strong></div></div><div id="reportDetails"></div></div>
+  </section>
+
+  <section id="settings" class="section">
+    <div class="grid">
+      <div class="panel"><h2>System Settings</h2><form id="settingsForm"><div class="field"><label>Number of Courts (3 or more supported)</label><input id="courtCount" type="number" min="1" max="20" value="3" required></div><div class="field"><label>Default Daily Registration Fee (₱)</label><input id="defaultReg" type="number" min="0" step=".01" value="50" required></div><div class="field"><label>Shuttlecock Fee (₱)</label><input id="shuttleCost" type="number" min="1" step=".01" value="100" required></div><button type="submit">Save Settings</button></form></div>
+      <div class="panel"><h2>Data Management</h2><p class="small">This prototype stores information in this browser on this device. Use export backups. For multi-device live access, connect a shared database and deploy the app online.</p><div class="row"><button id="backupData">Download Full Backup (JSON)</button><button class="secondary" id="restoreBtn">Import Backup</button><input id="restoreFile" type="file" accept=".json" hidden></div><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><button class="danger" id="resetDay">Reset Today's Queue & Matches</button><p class="small">This does not delete player registration or payment ledger history.</p></div>
+    </div>
+  </section>
+  <p class="small" style="text-align:center;margin-top:18px">Offline-first app • Data stays on this device/browser • Export a backup regularly. To use on another device, import the backup there.</p>
+</main>
+<script>
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+const DBKEY='badminton_queue_prototype_v2';
+const today=()=>new Date().toLocaleDateString('en-CA');
+const money=n=>'₱'+Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let db;
+try{db=JSON.parse(localStorage.getItem(DBKEY)||'null')}catch(e){db=null}
+if(!db)db={settings:{courts:3,regFee:50,shuttle:100},registrations:[],queue:[],matches:[],ledger:[]};
+if(!db.settings)db.settings={courts:3,regFee:50,shuttle:100};
+if(!db.registrations)db.registrations=[];if(!db.queue)db.queue=[];if(!db.matches)db.matches=[];if(!db.ledger)db.ledger=[];
+const $=id=>document.getElementById(id);
+const todayRegs=()=>db.registrations.filter(p=>p.date===today());
+const courtNum=()=>Number(db.settings.courts)||3;
+const matchesToday=()=>db.matches.filter(m=>m.date===today());
+const courtActive=n=>matchesToday().find(m=>m.court===n&&m.status==='Playing');
+function persist(){localStorage.setItem(DBKEY,JSON.stringify(db));render()}
+function names(ids){return ids.map(id=>todayRegs().find(p=>p.id===id)?.name||'Player removed')}
+function tag(status){let cl=status==='Paid'?'':'unpaid';if(status==='Playing')cl='playing';if(status==='Completed')cl='done';return `<span class="tag ${cl}">${esc(status)}</span>`}
+function courtCard(n,buttons=true){let m=courtActive(n);return `<div class="court"><h3>🏸 Court ${n} ${m?tag('Playing'):tag('Available')}</h3>${m?`<div class="names">${names(m.players).map(esc).join('<br>')}</div><p class="small">Match #${m.number} • Shuttles: ${m.shuttles}</p>${buttons?`<div class="actions"><button class="warn" onclick="recordShuttle('${m.id}')">+ Shuttle ₱${db.settings.shuttle}</button><button class="secondary" onclick="finishMatch('${m.id}')">Finish</button></div>`:''}`:'<p class="small">Court is available for the next match.</p>'}</div>`}
+function render(){
+ $('todayLabel').textContent=today();$('mPlayers').textContent=todayRegs().length;$('mMatches').textContent=matchesToday().length;
+ const ledToday=db.ledger.filter(x=>x.date===today()&&x.status==='Paid');
+ $('mReg').textContent=money(ledToday.filter(x=>x.type==='Registration').reduce((s,x)=>s+x.amount,0));
+ $('mShuttle').textContent=money(ledToday.filter(x=>x.type==='Shuttle').reduce((s,x)=>s+x.amount,0));
+ $('dashboardCourts').innerHTML=Array.from({length:courtNum()},(_,i)=>courtCard(i+1,false)).join('');
+ $('courtsList').innerHTML=Array.from({length:courtNum()},(_,i)=>courtCard(i+1,true)).join('');
+ const qsel=$('queueSelect'),old=qsel.value;
+ const queuedIds=new Set(db.queue);
+ qsel.innerHTML='<option value="">Select registered player</option>'+todayRegs().filter(p=>p.regStatus==='Paid'&&!queuedIds.has(p.id)&&!matchesToday().some(m=>m.status==='Playing'&&m.players.includes(p.id))).map(p=>`<option value="${p.id}">${esc(p.name)}${p.regStatus==='Unpaid'?' — Registration unpaid':''}</option>`).join('');
+ if([...qsel.options].some(o=>o.value===old))qsel.value=old;
+ $('qCount').textContent=db.queue.length;
+ $('queueList').innerHTML=db.queue.length?db.queue.map((id,i)=>`<div class="qitem"><span>${i+1}. ${esc(todayRegs().find(p=>p.id===id)?.name||'Unknown')}</span><button class="danger" onclick="removeFromQueue('${id}')">Remove</button></div>`).join(''):'<div class="empty">Queue is empty.</div>';
+ $('dashboardQueue').innerHTML=db.queue.length?db.queue.slice(0,8).map((id,i)=>`<div class="qitem"><span>${i+1}. ${esc(todayRegs().find(p=>p.id===id)?.name||'Unknown')}</span></div>`).join(''):'<div class="empty">No waiting players.</div>';
+ const avail=Array.from({length:courtNum()},(_,i)=>i+1).filter(n=>!courtActive(n)).length;
+ $('startNext').disabled=db.queue.length<4||avail<1;$('queueInfo').textContent=db.queue.length<4?`Waiting for ${4-db.queue.length} more player(s).`:avail?`${avail} court(s) available.`:'All courts are currently occupied.';
+ const search=$('playerSearch').value.toLowerCase();
+ $('playersRows').innerHTML=todayRegs().filter(p=>p.name.toLowerCase().includes(search)).map(p=>`<tr><td>${esc(p.name)}<div class="small">${esc(p.category||'Beginner')}</div></td><td>${money(p.regFee)}</td><td>${tag(p.regStatus)}</td><td>${db.queue.includes(p.id)?'Waiting':matchesToday().some(m=>m.status==='Playing'&&m.players.includes(p.id))?'Playing':'—'}</td><td><div class="actions"><button class="secondary" onclick="toggleRegPayment('${p.id}')">${p.regStatus==='Paid'?'Mark Unpaid':'Mark Paid'}</button><button class="danger" onclick="removeRegistration('${p.id}')">Remove</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="empty">No registrations for this date.</td></tr>';
+ $('activeMatches').innerHTML=matchesToday().filter(m=>m.status==='Playing').map(m=>`<div class="matchbox panel"><h3>Match #${m.number} — Court ${m.court}</h3><p class="small">${names(m.players).map(esc).join(' • ')} | Shuttles used: ${m.shuttles}</p><button onclick="recordShuttle('${m.id}')">Record Shuttle Used (₱${db.settings.shuttle})</button></div>`).join('')||'<p class="empty">No active matches.</p>';
+ renderLedger();renderReport();
+ const rafflePlayers=todayRegs();
+ $('raffleCount').textContent=rafflePlayers.length+' Entries';
+ $('raffleEntries').innerHTML=rafflePlayers.length?rafflePlayers.map((p,i)=>`<div class="qitem"><span>${i+1}. ${esc(p.name)}</span><span class="tag">Entry</span></div>`).join(''):'<div class="empty">No registered players yet.</div>';
+ $('drawRaffle').disabled=rafflePlayers.length===0;
+ $('regAmount').value=db.settings.regFee;$('courtCount').value=db.settings.courts;$('defaultReg').value=db.settings.regFee;$('shuttleCost').value=db.settings.shuttle;
+}
+function renderLedger(){let date=$('ledgerDate').value,type=$('ledgerType').value;let arr=db.ledger.filter(x=>(!date||x.date===date)&&(type==='All'||x.type===type));$('ledgerRows').innerHTML=arr.slice().reverse().map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.player)}</td><td>${esc(x.type)}</td><td>${money(x.amount)}</td><td>${tag(x.status)}</td><td>${x.match?'#'+x.match:'—'}</td><td>${x.status==='Unpaid'?`<button class="secondary" onclick="payLedger('${x.id}')">Mark Paid</button>`:'—'}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">No transactions found.</td></tr>'}
+function renderReport(){let d=$('reportDate').value||today(),regs=db.registrations.filter(p=>p.date===d),ms=db.matches.filter(m=>m.date===d),ls=db.ledger.filter(x=>x.date===d);$('rPlayers').textContent=regs.length;$('rMatches').textContent=ms.length;$('rCollected').textContent=money(ls.filter(x=>x.status==='Paid').reduce((s,x)=>s+x.amount,0));$('rUnpaid').textContent=money(ls.filter(x=>x.status==='Unpaid').reduce((s,x)=>s+x.amount,0));$('reportDetails').innerHTML=`<p class="small">Date: ${esc(d)} · Registration transactions: ${ls.filter(x=>x.type==='Registration').length} · Shuttle charges: ${ls.filter(x=>x.type==='Shuttle').length}</p>`}
+$('drawRaffle').onclick=()=>{const players=todayRegs();if(!players.length)return alert('No registered players available for the raffle.');const winner=players[Math.floor(Math.random()*players.length)];$('raffleWinner').innerHTML='🏆 Raffle Winner: <strong>'+esc(winner.name)+'</strong>'};
+$('registerForm').onsubmit=e=>{e.preventDefault();let name=$('pName').value.trim(),fee=Number($('regAmount').value);if(!name||fee<0)return;let category=$('pCategory').value,regStatus=$('regPayment').value;let p={id:uid(),date:today(),name,category,regFee:fee,regStatus};db.registrations.push(p);db.ledger.push({id:uid(),date:today(),player:name,type:'Registration',amount:fee,status:p.regStatus,match:null,registrationId:p.id});if(regStatus==='Paid'&&!db.queue.includes(p.id))db.queue.push(p.id);e.target.reset();$('regAmount').value=db.settings.regFee;persist()};
+$('addQueue').onclick=()=>{let id=$('queueSelect').value;if(!id)return alert('Choose a registered player.');if(todayRegs().find(p=>p.id===id)?.regStatus!=='Paid')return alert('Player must pay the registration fee before joining the queue.');if(db.queue.includes(id)||matchesToday().some(m=>m.status==='Playing'&&m.players.includes(id)))return alert('Player is already queued or playing.');db.queue.push(id);persist()};
+$('startNext').onclick=()=>{let court=Array.from({length:courtNum()},(_,i)=>i+1).find(n=>!courtActive(n));if(db.queue.length<4||!court)return;let players=db.queue.splice(0,4);db.matches.push({id:uid(),date:today(),number:matchesToday().length+1,court,players,shuttles:0,status:'Playing'});persist()};
+$('clearQueue').onclick=()=>{if(confirm('Clear all players from waiting queue?')){db.queue=[];persist()}};
+function removeFromQueue(id){db.queue=db.queue.filter(x=>x!==id);persist()}
+function toggleRegPayment(id){let p=todayRegs().find(x=>x.id===id);if(!p)return;p.regStatus=p.regStatus==='Paid'?'Unpaid':'Paid';let l=db.ledger.find(x=>x.registrationId===id);if(l)l.status=p.regStatus;persist()}
+function removeRegistration(id){if(!confirm('Remove this registration from today? Related payment records will remain in the ledger.'))return;db.registrations=db.registrations.filter(p=>p.id!==id);db.queue=db.queue.filter(x=>x!==id);persist()}
+function recordShuttle(id){let m=db.matches.find(x=>x.id===id);if(!m||m.status!=='Playing')return;m.shuttles++;let each=Number(db.settings.shuttle)/4;m.players.forEach(pid=>{let p=todayRegs().find(x=>x.id===pid);db.ledger.push({id:uid(),date:today(),player:p?.name||'Unknown',type:'Shuttle',amount:each,status:'Unpaid',match:m.number,matchId:m.id})});persist()}
+function payLedger(id){let x=db.ledger.find(x=>x.id===id);if(x){x.status='Paid';persist()}}
+function finishMatch(id){let m=db.matches.find(x=>x.id===id);if(m){m.status='Completed';m.players.forEach(pid=>{if(todayRegs().some(p=>p.id===pid&&p.regStatus==='Paid')&&!db.queue.includes(pid))db.queue.push(pid)});persist()}}
+$('settingsForm').onsubmit=e=>{e.preventDefault();let n=Number($('courtCount').value),r=Number($('defaultReg').value),s=Number($('shuttleCost').value);if(n<1||n>20||r<0||s<=0)return alert('Check your settings values.');db.settings={courts:n,regFee:r,shuttle:s};persist();alert('Settings saved.')};
+$('playerSearch').oninput=render;$('ledgerDate').onchange=renderLedger;$('ledgerType').onchange=renderLedger;$('makeReport').onclick=renderReport;$('reportDate').onchange=renderReport;
+function csvDownload(filename,rows){let csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');let blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('exportLedger').onclick=()=>csvDownload('badminton-ledger-'+today()+'.csv',[['Date','Player','Type','Amount','Status','Match'],...db.ledger.map(x=>[x.date,x.player,x.type,x.amount,x.status,x.match??''])]);
+$('exportReport').onclick=()=>{let d=$('reportDate').value||today();csvDownload('badminton-report-'+d+'.csv',[['Date','Player','Type','Amount','Status','Match'],...db.ledger.filter(x=>x.date===d).map(x=>[x.date,x.player,x.type,x.amount,x.status,x.match??''])])};
+$('backupData').onclick=()=>{let b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='badminton-system-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('restoreBtn').onclick=()=>$('restoreFile').click();$('restoreFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let parsed=JSON.parse(await f.text());if(!parsed.settings||!Array.isArray(parsed.registrations)||!Array.isArray(parsed.ledger))throw Error();if(confirm('Import backup and replace current data?')){db=parsed;persist();alert('Backup imported.')}}catch(err){alert('Invalid backup file.')}e.target.value=''};
+$('resetDay').onclick=()=>{if(!confirm('Remove today queue and today match records? This cannot be undone.'))return;db.queue=[];db.matches=db.matches.filter(m=>m.date!==today());persist()};
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===b.dataset.tab));render()});
+$('ledgerDate').value=today();$('reportDate').value=today();render();
+</script>
+</body></html>
